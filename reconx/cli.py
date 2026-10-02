@@ -224,11 +224,12 @@ def run_scan(args: argparse.Namespace) -> None:
     from .core.engine import ReconEngine
 
     engine = ReconEngine(
-        target=args.target,
-        module=args.module,
-        run_all=args.all,
-        output_format=args.output,
-    )
+    target=args.target,
+    module=args.module,
+    run_all=args.all,
+    output_format=args.output,
+    authorized=args.authorized,
+)
 
     engine.run()
 
