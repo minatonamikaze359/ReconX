@@ -10,6 +10,7 @@ DEV BY LORD MINATO
 from __future__ import annotations
 
 import argparse
+import shlex
 import sys
 
 from rich.table import Table
@@ -140,19 +141,13 @@ def show_help(
     )
 
     examples = [
-        "python main.py scan example.com --authorized",
-        (
-            "python main.py scan example.com "
-            "--module dns --authorized"
-        ),
-        (
-            "python main.py scan example.com "
-            "--all --authorized"
-        ),
-        "python main.py report",
-        "python main.py report example.com",
-        "python main.py modules",
-        "python main.py version",
+        "scan example.com --authorized",
+        "scan example.com --module dns --authorized",
+        "scan example.com --all --authorized",
+        "report",
+        "report example.com",
+        "modules",
+        "version",
     ]
 
     for example in examples:
@@ -238,7 +233,7 @@ def show_reports(
 
             console.print(
                 "\n[dim]Use "
-                "[cyan]python main.py report[/cyan] "
+                "[cyan]report[/cyan] "
                 "to list available reports.[/dim]\n"
             )
 
@@ -305,7 +300,7 @@ def show_reports(
 
         console.print(
             "\n[dim]Run a scan first:[/dim]\n"
-            "  [cyan]python main.py scan "
+            "  [cyan]scan "
             "example.com --authorized[/cyan]\n"
         )
 
@@ -384,7 +379,7 @@ def run_scan(
 
         console.print(
             "\n[bold yellow]Use:[/bold yellow]\n"
-            f"  python main.py scan "
+            f"  scan "
             f"{args.target} --authorized\n"
         )
 
@@ -418,6 +413,8 @@ def interactive_mode() -> None:
         "or 'exit' to quit.[/dim]"
     )
 
+    parser = create_parser()
+
     while True:
         try:
             command = console.input(
@@ -450,42 +447,51 @@ def interactive_mode() -> None:
             )
             break
 
-        if lowered in {
-            "help",
-            "?",
-        }:
-            parser = create_parser()
+        try:
+            args_list = shlex.split(command)
+        except ValueError as e:
+            error(f"Parsing error: {e}")
+            continue
+
+        if len(args_list) >= 2 and args_list[0].lower() == "python" and "main.py" in args_list[1].lower():
+            args_list = args_list[2:]
+        elif len(args_list) >= 1 and args_list[0].lower() == "main.py":
+            args_list = args_list[1:]
+
+        if not args_list:
+            continue
+
+        try:
+            args = parser.parse_args(args_list)
+        except SystemExit:
+            continue
+
+        if args.command == "help":
             show_help(parser)
-            continue
 
-        if lowered == "version":
+        elif args.command == "version":
             show_version()
-            continue
 
-        if lowered == "modules":
+        elif args.command == "modules":
             show_modules()
-            continue
 
-        if lowered == "report":
-            show_reports()
-            continue
+        elif args.command == "report":
+            show_reports(
+                getattr(
+                    args,
+                    "target",
+                    None,
+                )
+            )
 
-        if lowered.startswith(
-            "report "
-        ):
-            target = command[7:].strip()
+        elif args.command == "scan":
+            run_scan(args)
 
-            if target:
-                show_reports(target)
-            else:
-                show_reports()
-
-            continue
-
-        console.print(
-            "[yellow]Unknown command.[/yellow] "
-            "Type [cyan]help[/cyan] for available commands."
-        )
+        else:
+            console.print(
+                "[yellow]Unknown command.[/yellow] "
+                "Type [cyan]help[/cyan] for available commands."
+            )
 
 
 def main() -> None:
